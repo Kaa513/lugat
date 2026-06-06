@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f0e8; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h2 { color: #2d6a4f; margin: 0; }
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; }
+        .btn-green { background: #2d6a4f; color: white; }
+        .btn-red { background: #e74c3c; color: white; }
+        .btn-yellow { background: #f39c12; color: white; }
+        .btn-gray { background: #95a5a6; color: white; }
+        .search { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        table { width: 100%; background: white; border-radius: 12px; border-collapse: collapse; overflow: hidden; }
+        th { background: #2d6a4f; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f9f9f9; }
+        .actions { display: flex; gap: 8px; }
+        .pagination { margin-top: 20px; display: flex; gap: 10px; }
+        .clean-btn { background: #8e44ad; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Admin Panel — Lug'at</h2>
+        <div style="display:flex; gap:10px;">
+            <a href="/admin/clean_cl" class="btn clean-btn" onclick="return confirm('CL mусорни тозалайми?')">CL tozala</a>
+            <a href="/admin/add" class="btn btn-green">+ Yangi so'z</a>
+            <a href="/admin/logout" class="btn btn-gray">Chiqish</a>
+        </div>
+    </div>
+
+    <div class="search">
+        <form method="GET" style="display:flex; gap:10px; width:100%;">
+            <input type="text" name="q" value="{{ q }}" placeholder="Qidirish...">
+            <button type="submit" class="btn btn-green">Qidirish</button>
+        </form>
+    </div>
+
+    {% for msg in get_flashed_messages() %}
+        <p style="color: green; font-weight: bold;">{{ msg }}</p>
+    {% endfor %}
+
+    <p>Jami: <strong>{{ total }}</strong> ta so'z</p>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Xitoycha</th>
+            <th>Pinyin</th>
+            <th>O'zbek</th>
+            <th>English</th>
+            <th>Amallar</th>
+        </tr>
+        {% for word in words %}
+        <tr>
+            <td>{{ word.id }}</td>
+            <td style="font-size:20px;">{{ word.chinese }}</td>
+            <td>{{ word.pinyin }}</td>
+            <td>{{ word.uzbek[:50] }}{% if word.uzbek and word.uzbek|length > 50 %}...{% endif %}</td>
+            <td>{{ word.english[:50] if word.english else '' }}{% if word.english and word.english|length > 50 %}...{% endif %}</td>
+            <td class="actions">
+                <a href="/admin/edit/{{ word.id }}" class="btn btn-yellow">Tahrir</a>
+                <a href="/admin/delete/{{ word.id }}" class="btn btn-red" onclick="return confirm('O\'chirishni tasdiqlaysizmi?')">O'chir</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="?page={{ page-1 }}&q={{ q }}" class="btn btn-green">← Oldingi</a>
+        {% endif %}
+        <span style="padding: 8px;">{{ page }} / {{ (total // per_page) + 1 }}</span>
+        {% if page * per_page < total %}
+            <a href="?page={{ page+1 }}&q={{ q }}" class="btn btn-green">Keyingi →</a>
+        {% endif %}
+    </div>
+</body>
+</html>

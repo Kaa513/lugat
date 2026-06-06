@@ -4,8 +4,11 @@ from flask import Flask, abort, render_template, request
 
 from database import get_connection, init_db, seed_sample_if_empty
 from pinyin_utils import convert_pinyin
+from admin import admin_bp
 
 app = Flask(__name__)
+app.secret_key = "lugat_secret_key_2024"
+app.register_blueprint(admin_bp)
 init_db()
 seed_sample_if_empty()
 

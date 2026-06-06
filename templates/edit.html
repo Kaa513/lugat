@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>So'z tahrirlash</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f0e8; margin: 0; padding: 20px; }
+        .box { background: white; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; }
+        h2 { color: #2d6a4f; margin: 0 0 20px; }
+        label { display: block; margin: 15px 0 5px; font-weight: bold; color: #555; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        textarea { height: 80px; resize: vertical; }
+        .buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 16px; text-decoration: none; }
+        .btn-green { background: #2d6a4f; color: white; }
+        .btn-gray { background: #95a5a6; color: white; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>{{ "So'z tahrirlash" if word else "Yangi so'z qo'shish" }}</h2>
+        <form method="POST">
+            <label>Xitoycha</label>
+            <input type="text" name="chinese" value="{{ word.chinese if word else '' }}" required>
+
+            <label>Pinyin</label>
+            <input type="text" name="pinyin" value="{{ word.pinyin if word else '' }}">
+
+            <label>O'zbek</label>
+            <textarea name="uzbek">{{ word.uzbek if word else '' }}</textarea>
+
+            <label>English</label>
+            <textarea name="english">{{ word.english if word else '' }}</textarea>
+
+            <label>Misol (Xitoycha)</label>
+            <input type="text" name="example_chinese" value="{{ word.example_chinese if word else '' }}">
+
+            <label>Misol (O'zbek)</label>
+            <input type="text" name="example_uzbek" value="{{ word.example_uzbek if word else '' }}">
+
+            <div class="buttons">
+                <button type="submit" class="btn btn-green">Saqlash</button>
+                <a href="/admin" class="btn btn-gray">Bekor qilish</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
