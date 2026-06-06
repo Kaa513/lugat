@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lug'at - Xitoycha-O'zbekcha Lug'at</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <h1>Lug'at</h1>
+      <p>Xitoycha-O'zbekcha lug'at</p>
+    </header>
+
+    <form class="search-form" method="get" action="{{ url_for('index') }}" role="search">
+      <input
+        type="search"
+        name="q"
+        value="{{ q }}"
+        placeholder="Xitoycha, o'zbekcha yoki inglizcha qidiring…"
+        autocomplete="off"
+        aria-label="Lug'atdan qidirish">
+      <button type="submit">Qidirish</button>
+    </form>
+
+    <p class="hint">Natijani ochish uchun bosing.</p>
+
+    {% if q and not results %}
+      <p class="empty">“{{ q }}” bo'yicha hech narsa topilmadi.</p>
+    {% elif q and results %}
+      <ul class="results">
+        {% for row in results %}
+          <li>
+            <a class="result-card" href="{{ url_for('word_detail', word_id=row.id) }}">
+              <div class="entry-head">
+                <div class="entry-cn">{{ row.chinese }}</div>
+                {% if row.pinyin %}
+                  <div class="entry-pinyin">{{ row.pinyin }}</div>
+                {% endif %}
+              </div>
+              {% if row.uzbek %}
+                <p class="entry-line">
+                  <span class="entry-label">O'zbek:</span>
+                  <span class="entry-text">{{ row.uzbek }}</span>
+                </p>
+              {% endif %}
+              {% if row.english %}
+                <p class="entry-line entry-line--english">
+                  <span class="entry-label">English:</span>
+                  <span class="entry-text">{{ row.english }}</span>
+                </p>
+              {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% elif not q %}
+      <p class="empty">Qidirish uchun so'z kiriting.</p>
+    {% endif %}
+
+    <footer class="site">Lug'at</footer>
+  </div>
+</body>
+</html>

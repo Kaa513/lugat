@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ word.chinese }} — Lug'at - Xitoycha-O'zbekcha Lug'at</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="{{ url_for('index') }}">← Qidiruvga qaytish</a>
+
+    <article class="card card--detail">
+      <div class="entry-head entry-head--detail">
+        <h1 class="entry-cn entry-cn--detail">{{ word.chinese }}</h1>
+        {% if word.pinyin %}
+          <p class="entry-pinyin entry-pinyin--detail">{{ word.pinyin }}</p>
+        {% endif %}
+      </div>
+
+      <div class="translations">
+        {% if word.uzbek %}
+          <p class="entry-line entry-line--detail">
+            <span class="entry-label">O'zbek:</span>
+            <span class="entry-text">{{ word.uzbek }}</span>
+          </p>
+        {% endif %}
+        {% if word.english %}
+          <p class="entry-line entry-line--detail entry-line--english">
+            <span class="entry-label">English:</span>
+            <span class="entry-text">{{ word.english }}</span>
+          </p>
+        {% endif %}
+      </div>
+
+      {% if word.example_chinese or word.example_uzbek %}
+        <section class="examples" aria-label="Misollar">
+          <h2 class="examples-title">Misollar</h2>
+          {% if word.example_chinese %}
+            <div class="example-block">
+              <p class="example-label">Xitoycha</p>
+              <p class="example-zh">{{ word.example_chinese }}</p>
+            </div>
+          {% endif %}
+          {% if word.example_uzbek %}
+            <div class="example-block">
+              <p class="example-label">O'zbekcha</p>
+              <p>{{ word.example_uzbek }}</p>
+            </div>
+          {% endif %}
+        </section>
+      {% endif %}
+    </article>
+
+    <footer class="site">Lug'at</footer>
+  </div>
+</body>
+</html>
