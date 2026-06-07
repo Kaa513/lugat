@@ -6,7 +6,11 @@ import re
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-ADMIN_PASSWORD = "lugat2024"  # Измени на свой пароль!
+#ADMIN_PASSWORD = "lugat2024"  # Измени на свой пароль!
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "lugat2024")
+import os
+
+login_attempts = {}
 
 
 def login_required(f):
@@ -21,11 +25,20 @@ def login_required(f):
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    ip = request.remote_addr
+    attempts = login_attempts.get(ip, 0)
+
+    if attempts >= 5:
+        flash('Juda ko\'p urinish! 15 daqiqadan keyin qayta urining.')
+        return render_template('admin_login.html')
+
     if request.method == 'POST':
         if request.form.get('password') == ADMIN_PASSWORD:
             session['admin_logged_in'] = True
+            login_attempts[ip] = 0
             return redirect(url_for('admin.index'))
-        flash('Noto\'g\'ri parol!')
+        login_attempts[ip] = attempts + 1
+        flash(f'Noto\'g\'ri parol! {5 - attempts - 1} ta urinish qoldi.')
     return render_template('admin_login.html')
 
 

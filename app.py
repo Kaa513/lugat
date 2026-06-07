@@ -5,10 +5,21 @@ from flask import Flask, abort, render_template, request
 from database import get_connection, init_db, seed_sample_if_empty
 from pinyin_utils import convert_pinyin
 from admin import admin_bp
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import os
 
 app = Flask(__name__)
-app.secret_key = "lugat_secret_key_2024"
+app.secret_key = os.environ.get("SECRET_KEY", "lugat_secret_key_2024")
 app.register_blueprint(admin_bp)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "30 per minute"],
+    storage_uri="memory://"
+)
+
 init_db()
 seed_sample_if_empty()
 
