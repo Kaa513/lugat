@@ -1,17 +1,18 @@
 """Admin panel for Lugat dictionary."""
 
+"""Admin panel for Lugat dictionary."""
+
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_connection
 import re
+import os
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-#ADMIN_PASSWORD = "lugat2024"  # Измени на свой пароль!
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "lugat2024")
-import os
 
 login_attempts = {}
-
+#ADMIN_PASSWORD = "lugat2024"  # Измени на свой пароль!
 
 def login_required(f):
     from functools import wraps
