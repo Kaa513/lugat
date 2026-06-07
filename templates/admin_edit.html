@@ -21,6 +21,7 @@
     <div class="box">
         <h2>{{ "So'z tahrirlash" if word else "Yangi so'z qo'shish" }}</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Xitoycha</label>
             <input type="text" name="chinese" value="{{ word.chinese if word else '' }}" required>
 

@@ -7,10 +7,12 @@ from pinyin_utils import convert_pinyin
 from admin import admin_bp
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 import os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "lugat_secret_key_2024")
+csrf = CSRFProtect(app)
 app.register_blueprint(admin_bp)
 
 limiter = Limiter(
