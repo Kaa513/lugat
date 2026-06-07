@@ -1,4 +1,3 @@
-"""Admin panel for Lugat dictionary."""
 
 """Admin panel for Lugat dictionary."""
 
