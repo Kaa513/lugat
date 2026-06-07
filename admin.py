@@ -1,4 +1,3 @@
-
 """Admin panel for Lugat dictionary."""
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
@@ -9,9 +8,8 @@ import os
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "lugat2024")
-
 login_attempts = {}
-#ADMIN_PASSWORD = "lugat2024"  # Измени на свой пароль!
+
 
 def login_required(f):
     from functools import wraps
@@ -27,11 +25,9 @@ def login_required(f):
 def login():
     ip = request.remote_addr
     attempts = login_attempts.get(ip, 0)
-
     if attempts >= 5:
-        flash('Juda ko\'p urinish! 15 daqiqadan keyin qayta urining.')
+        flash('Juda ko\'p urinish!')
         return render_template('admin_login.html')
-
     if request.method == 'POST':
         if request.form.get('password') == ADMIN_PASSWORD:
             session['admin_logged_in'] = True
@@ -55,7 +51,6 @@ def index():
     q = request.args.get('q', '').strip()
     per_page = 50
     offset = (page - 1) * per_page
-
     with get_connection() as conn:
         if q:
             words = conn.execute(
@@ -71,7 +66,6 @@ def index():
                 "SELECT * FROM words LIMIT ? OFFSET ?", (per_page, offset)
             ).fetchall()
             total = conn.execute("SELECT COUNT(*) as c FROM words").fetchone()['c']
-
     return render_template('admin_index.html', words=words, page=page,
                            total=total, per_page=per_page, q=q)
 
@@ -131,7 +125,6 @@ def add():
 @admin_bp.route('/clean_cl')
 @login_required
 def clean_cl():
-    """Remove CL:... garbage from uzbek and english fields."""
     with get_connection() as conn:
         words = conn.execute("SELECT id, uzbek, english FROM words").fetchall()
         count = 0
