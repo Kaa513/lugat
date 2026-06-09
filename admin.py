@@ -88,6 +88,7 @@ def edit(word_id):
                     word_id
                 )
             )
+            conn.commit()
             return redirect(url_for('admin.index'))
         word = conn.execute("SELECT * FROM words WHERE id=?", (word_id,)).fetchone()
     return render_template('admin_edit.html', word=word)
@@ -118,6 +119,7 @@ def add():
                     request.form['example_uzbek'],
                 )
             )
+            conn.commit()
         return redirect(url_for('admin.index'))
     return render_template('admin_edit.html', word=None)
 
