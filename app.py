@@ -2,7 +2,7 @@
 
 from flask import Flask, abort, render_template, request
 
-from database import get_connection, init_db, seed_sample_if_empty
+from database import get_connection, init_db, init_flashcards_db, seed_sample_if_empty
 from pinyin_utils import convert_pinyin
 from admin import admin_bp
 from flask_limiter import Limiter
@@ -23,6 +23,7 @@ limiter = Limiter(
 )
 
 init_db()
+init_flashcards_db()
 seed_sample_if_empty()
 
 
@@ -243,7 +244,81 @@ def word_detail(word_id: int):
     word = get_word(word_id)
     if not word:
         abort(404)
-    return render_template("word.html", word=word)
+    in_flashcards = is_in_flashcards(word_id)
+    return render_template("word.html", word=word, in_flashcards=in_flashcards)
+
+@app.route("/flashcards")
+def flashcards():
+    session_id = request.cookies.get("session_id", "")
+    if not session_id:
+        return render_template("flashcards.html", cards=[], hsk_levels={})
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT w.id, w.chinese, w.pinyin, w.uzbek, w.english,
+                   w.example_chinese, w.example_uzbek, w.hsk_level
+            FROM flashcards f
+            JOIN words w ON w.id = f.word_id
+            WHERE f.session_id = ?
+            ORDER BY w.hsk_level ASC, f.added_at DESC
+            """,
+            (session_id,),
+        ).fetchall()
+    all_cards = [_display_row(dict(r)) for r in rows]
+    hsk_levels = {}
+    user_cards = []
+    for card in all_cards:
+        level = card.get("hsk_level")
+        if level:
+            hsk_levels.setdefault(level, []).append(card)
+        else:
+            user_cards.append(card)
+    return render_template("flashcards.html", user_cards=user_cards, hsk_levels=hsk_levels)
+
+
+@app.route("/flashcards/add/<int:word_id>", methods=["POST"])
+def flashcard_add(word_id: int):
+    import uuid
+    from flask import make_response, redirect, url_for
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    with get_connection() as conn:
+        try:
+            conn.execute(
+                "INSERT INTO flashcards (session_id, word_id) VALUES (?, ?)",
+                (session_id, word_id),
+            )
+        except Exception:
+            pass
+    resp = make_response(redirect(url_for("word_detail", word_id=word_id)))
+    resp.set_cookie("session_id", session_id, max_age=60*60*24*365)
+    return resp
+
+
+@app.route("/flashcards/remove/<int:word_id>", methods=["POST"])
+def flashcard_remove(word_id: int):
+    from flask import redirect, url_for
+    session_id = request.cookies.get("session_id", "")
+    if session_id:
+        with get_connection() as conn:
+            conn.execute(
+                "DELETE FROM flashcards WHERE session_id = ? AND word_id = ?",
+                (session_id, word_id),
+            )
+    return redirect(url_for("flashcards"))
+
+
+def is_in_flashcards(word_id: int) -> bool:
+    session_id = request.cookies.get("session_id", "")
+    if not session_id:
+        return False
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM flashcards WHERE session_id = ? AND word_id = ?",
+            (session_id, word_id),
+        ).fetchone()
+    return row is not None
 
 
 if __name__ == "__main__":

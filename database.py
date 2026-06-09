@@ -80,3 +80,18 @@ def seed_sample_if_empty() -> None:
             """,
             samples,
         )
+
+def init_flashcards_db() -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS flashcards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                word_id INTEGER NOT NULL,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (word_id) REFERENCES words(id),
+                UNIQUE(session_id, word_id)
+            )
+            """
+        )

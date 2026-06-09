@@ -324,3 +324,20 @@ footer.site {
   color: var(--muted);
   text-align: center;
 }
+
+.btn-flashcard {
+  display: inline-block;
+  margin: 0.8rem 0 1.2rem;
+  padding: 0.55rem 1.2rem;
+  background: var(--accent, #c0392b);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-flashcard:hover { opacity: 0.85; }
+.btn-flashcard--remove {
+  background: #888;
+}

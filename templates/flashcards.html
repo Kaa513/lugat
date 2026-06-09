@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flashcardlar — Lug'at</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-G51QRVFXC4"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-G51QRVFXC4');
+  </script>
+  <style>
+    .fc-section { margin-bottom: 2.5rem; }
+    .fc-section h2 { font-size: 1.2rem; margin-bottom: 1rem; color: var(--accent, #c0392b); }
+    .fc-grid { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+
+    .fc-card { width: 220px; height: 300px; perspective: 1000px; cursor: pointer; }
+    .fc-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+    .fc-card.flipped .fc-inner { transform: rotateY(180deg); }
+
+    .fc-front, .fc-back {
+      position: absolute; width: 100%; height: 100%;
+      backface-visibility: hidden;
+      border-radius: 14px;
+      background: var(--card-bg, #fff);
+      box-shadow: 0 4px 18px rgba(0,0,0,0.10);
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    .fc-back { transform: rotateY(180deg); }
+
+    .fc-top { font-size: 0.78rem; color: #888; text-align: center; min-height: 2.5rem; display: flex; align-items: center; justify-content: center; }
+    .fc-middle { font-size: 3rem; font-weight: bold; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+    .fc-bottom { font-size: 0.78rem; color: #888; text-align: center; min-height: 2.5rem; display: flex; align-items: center; justify-content: center; }
+
+    .fc-back .fc-top { color: #333; font-size: 0.85rem; }
+    .fc-back .fc-middle { font-size: 1.3rem; color: var(--accent, #c0392b); font-weight: bold; }
+    .fc-back .fc-bottom { color: #333; font-size: 0.85rem; }
+
+    .fc-empty { color: #aaa; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="{{ url_for('index') }}">← Bosh sahifa</a>
+    <h1>Flashcardlar</h1>
+
+    {% if not user_cards and not hsk_levels %}
+      <p class="fc-empty">Hali flashcard yo'q. So'z sahifasidan qo'shing.</p>
+    {% endif %}
+
+    {% if hsk_levels %}
+      {% for level in hsk_levels|sort %}
+        <div class="fc-section">
+          <h2>HSK {{ level }}</h2>
+          <div class="fc-grid">
+            {% for card in hsk_levels[level] %}
+              {% set examples = [] %}
+              {% if card.example_chinese %}{% set examples = card.example_chinese.split('|') %}{% endif %}
+              {% set half = (examples|length // 2) %}
+              <div class="fc-card" onclick="this.classList.toggle('flipped')">
+                <div class="fc-inner">
+                  <div class="fc-front">
+                    <div class="fc-top">
+                      {% for ex in examples[:half] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                    </div>
+                    <div class="fc-middle">{{ card.chinese }}</div>
+                    <div class="fc-bottom">
+                      {% for ex in examples[half:] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                    </div>
+                  </div>
+                  <div class="fc-back">
+                    <div class="fc-top">
+                      {% set uzb_examples = [] %}
+                      {% if card.example_uzbek %}{% set uzb_examples = card.example_uzbek.split('|') %}{% endif %}
+                      {% for ex in uzb_examples[:half] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                    </div>
+                    <div class="fc-middle">{{ card.uzbek or card.english }}</div>
+                    <div class="fc-bottom">
+                      {% if card.pinyin %}<em>{{ card.pinyin }}</em>{% endif %}
+                      {% set uzb_examples2 = [] %}
+                      {% if card.example_uzbek %}{% set uzb_examples2 = card.example_uzbek.split('|') %}{% endif %}
+                      {% for ex in uzb_examples2[half:] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if user_cards %}
+      <div class="fc-section">
+        <h2>Mening so'zlarim</h2>
+        <div class="fc-grid">
+          {% for card in user_cards %}
+            {% set examples = [] %}
+            {% if card.example_chinese %}{% set examples = card.example_chinese.split('|') %}{% endif %}
+            {% set half = (examples|length // 2) %}
+            <div class="fc-card" onclick="this.classList.toggle('flipped')">
+              <div class="fc-inner">
+                <div class="fc-front">
+                  <div class="fc-top">
+                    {% for ex in examples[:half] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                  </div>
+                  <div class="fc-middle">{{ card.chinese }}</div>
+                  <div class="fc-bottom">
+                    {% for ex in examples[half:] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                  </div>
+                </div>
+                <div class="fc-back">
+                  <div class="fc-top">
+                    {% set uzb_examples = [] %}
+                    {% if card.example_uzbek %}{% set uzb_examples = card.example_uzbek.split('|') %}{% endif %}
+                    {% for ex in uzb_examples[:half] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                  </div>
+                  <div class="fc-middle">{{ card.uzbek or card.english }}</div>
+                  <div class="fc-bottom">
+                    {% if card.pinyin %}<em>{{ card.pinyin }}</em>{% endif %}
+                    {% set uzb_examples2 = [] %}
+                    {% if card.example_uzbek %}{% set uzb_examples2 = card.example_uzbek.split('|') %}{% endif %}
+                    {% for ex in uzb_examples2[half:] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <footer class="site">Lug'at</footer>
+  </div>
+</body>
+</html>

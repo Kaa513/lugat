@@ -18,6 +18,18 @@
   <div class="wrap">
     <a class="back" href="{{ url_for('index') }}">← Qidiruvga qaytish</a>
 
+    {% if in_flashcards %}
+      <form method="post" action="{{ url_for('flashcard_remove', word_id=word.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-flashcard btn-flashcard--remove">✓ Flashcarddan olib tashlash</button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('flashcard_add', word_id=word.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-flashcard">+ Flashcartaga qo'shish</button>
+      </form>
+    {% endif %}
+
     <article class="card card--detail">
       <div class="entry-head entry-head--detail">
         <h1 class="entry-cn entry-cn--detail">{{ word.chinese }}</h1>
