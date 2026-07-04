@@ -3,3 +3,4 @@ gunicorn
 deep-translator>=1.11,<2
 flask-limiter
 flask-wtf
+openpyxl
