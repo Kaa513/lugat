@@ -176,61 +176,6 @@ def _display_row(row: dict) -> dict:
     return out
 
 
-# def search_words(query: str, limit: int = 50):
-#     q = query.strip()
-#     if not q:
-#         return []
-#
-#     with get_connection() as conn:
-#         # Exact gloss hits first (no row cap) so "computer" always finds 电脑.
-#         gloss = _gloss_sql_patterns(q)
-#         exact_rows = conn.execute(
-#             """
-#             SELECT id, uzbek, english, chinese, pinyin,
-#                    example_chinese, example_uzbek
-#             FROM words
-#             WHERE chinese = ?
-#                OR english = ? COLLATE NOCASE
-#                OR english LIKE ? COLLATE NOCASE
-#                OR english LIKE ? COLLATE NOCASE
-#                OR english LIKE ? COLLATE NOCASE
-#                OR uzbek = ? COLLATE NOCASE
-#                OR uzbek LIKE ? COLLATE NOCASE
-#                OR uzbek LIKE ? COLLATE NOCASE
-#                OR uzbek LIKE ? COLLATE NOCASE
-#             """,
-#             (q, *gloss, *gloss),
-#         ).fetchall()
-#
-#         seen: set[int] = set()
-#         results: list[dict] = []
-#
-#         for row in sorted(
-#             (dict(r) for r in exact_rows if _row_matches(q, dict(r))),
-#             key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
-#         ):
-#             rid = row["id"]
-#             if rid in seen:
-#                 continue
-#             seen.add(rid)
-#             results.append(row)
-#             if len(results) >= limit:
-#                 return [_display_row(r) for r in results[:limit]]
-#
-#         need = limit - len(results)
-#         if need > 0:
-#             partial = _fetch_candidates(conn, q, max(need * 40, 2000))
-#             partial = [r for r in partial if r["id"] not in seen and _row_matches(q, r)]
-#             partial.sort(
-#                 key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
-#             )
-#             for row in partial:
-#                 seen.add(row["id"])
-#                 results.append(row)
-#                 if len(results) >= limit:
-#                     break
-#
-#     return [_display_row(r) for r in results[:limit]]
 def search_words(query: str, limit: int = 50):
     q = query.strip()
     if not q:
@@ -273,7 +218,25 @@ def search_words(query: str, limit: int = 50):
                   OR english LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE""",
-        )
+            (*gloss, *gloss),
+        ).fetchall()
+
+        seen: set[int] = set()
+        results: list[dict] = []
+
+        for row in sorted(
+            (dict(r) for r in exact_rows if _row_matches(q, dict(r))),
+            key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
+        ):
+            rid = row["id"]
+            if rid in seen:
+                continue
+            seen.add(rid)
+            results.append(row)
+            if len(results) >= limit:
+                return [_display_row(r) for r in results[:limit]]
+
+    return [_display_row(r) for r in results[:limit]]
 
 def get_word(word_id: int):
     with get_connection() as conn:
