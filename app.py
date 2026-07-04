@@ -217,8 +217,9 @@ def search_words(query: str, limit: int = 50):
                   OR english = ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE
-                  OR english LIKE ? COLLATE NOCASE""",
-            (*gloss, *gloss),
+                  OR english LIKE ? COLLATE NOCASE
+                  OR pinyin LIKE ? COLLATE NOCASE""",
+            (*gloss, *gloss, f"{q}%"),
         ).fetchall()
 
         seen: set[int] = set()
