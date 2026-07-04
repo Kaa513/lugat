@@ -115,6 +115,22 @@ def _match_tier(query: str, row: dict) -> int:
 
     return 3
 
+def _detect_language(query: str) -> str:
+    """Detect input language: 'chinese', 'pinyin', 'uzbek'"""
+    q = query.strip()
+    # Chinese characters
+    if any('\u4e00' <= ch <= '\u9fff' for ch in q):
+        return 'chinese'
+    # Pinyin with tone marks
+    tone_marks = 'āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ'
+    if any(ch in tone_marks for ch in q.lower()):
+        return 'pinyin'
+    # Numbers after letters = pinyin without tones (ni3, wo3)
+    import re
+    if re.search(r'[a-zA-Z][1-4]', q):
+        return 'pinyin'
+    # Default: uzbek/english latin
+    return 'latin'
 
 def _fetch_candidates(conn, q: str, cap: int) -> list[dict]:
     """SQL pre-filter; final matching uses per-gloss logic in Python."""
@@ -160,62 +176,104 @@ def _display_row(row: dict) -> dict:
     return out
 
 
+# def search_words(query: str, limit: int = 50):
+#     q = query.strip()
+#     if not q:
+#         return []
+#
+#     with get_connection() as conn:
+#         # Exact gloss hits first (no row cap) so "computer" always finds 电脑.
+#         gloss = _gloss_sql_patterns(q)
+#         exact_rows = conn.execute(
+#             """
+#             SELECT id, uzbek, english, chinese, pinyin,
+#                    example_chinese, example_uzbek
+#             FROM words
+#             WHERE chinese = ?
+#                OR english = ? COLLATE NOCASE
+#                OR english LIKE ? COLLATE NOCASE
+#                OR english LIKE ? COLLATE NOCASE
+#                OR english LIKE ? COLLATE NOCASE
+#                OR uzbek = ? COLLATE NOCASE
+#                OR uzbek LIKE ? COLLATE NOCASE
+#                OR uzbek LIKE ? COLLATE NOCASE
+#                OR uzbek LIKE ? COLLATE NOCASE
+#             """,
+#             (q, *gloss, *gloss),
+#         ).fetchall()
+#
+#         seen: set[int] = set()
+#         results: list[dict] = []
+#
+#         for row in sorted(
+#             (dict(r) for r in exact_rows if _row_matches(q, dict(r))),
+#             key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
+#         ):
+#             rid = row["id"]
+#             if rid in seen:
+#                 continue
+#             seen.add(rid)
+#             results.append(row)
+#             if len(results) >= limit:
+#                 return [_display_row(r) for r in results[:limit]]
+#
+#         need = limit - len(results)
+#         if need > 0:
+#             partial = _fetch_candidates(conn, q, max(need * 40, 2000))
+#             partial = [r for r in partial if r["id"] not in seen and _row_matches(q, r)]
+#             partial.sort(
+#                 key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
+#             )
+#             for row in partial:
+#                 seen.add(row["id"])
+#                 results.append(row)
+#                 if len(results) >= limit:
+#                     break
+#
+#     return [_display_row(r) for r in results[:limit]]
 def search_words(query: str, limit: int = 50):
     q = query.strip()
     if not q:
         return []
 
+    lang = _detect_language(q)
+
     with get_connection() as conn:
-        # Exact gloss hits first (no row cap) so "computer" always finds 电脑.
+        if lang == 'chinese':
+            rows = conn.execute(
+                """SELECT id, uzbek, english, chinese, pinyin,
+                   example_chinese, example_uzbek, hsk_level
+                   FROM words WHERE chinese LIKE ?
+                   ORDER BY LENGTH(chinese) ASC LIMIT ?""",
+                (f"%{q}%", limit)
+            ).fetchall()
+            return [_display_row(dict(r)) for r in rows]
+
+        if lang == 'pinyin':
+            rows = conn.execute(
+                """SELECT id, uzbek, english, chinese, pinyin,
+                   example_chinese, example_uzbek, hsk_level
+                   FROM words WHERE pinyin LIKE ? COLLATE NOCASE
+                   ORDER BY LENGTH(pinyin) ASC LIMIT ?""",
+                (f"%{q}%", limit)
+            ).fetchall()
+            return [_display_row(dict(r)) for r in rows]
+
+        # latin — uzbek first, then english
         gloss = _gloss_sql_patterns(q)
         exact_rows = conn.execute(
-            """
-            SELECT id, uzbek, english, chinese, pinyin,
-                   example_chinese, example_uzbek
-            FROM words
-            WHERE chinese = ?
-               OR english = ? COLLATE NOCASE
-               OR english LIKE ? COLLATE NOCASE
-               OR english LIKE ? COLLATE NOCASE
-               OR english LIKE ? COLLATE NOCASE
-               OR uzbek = ? COLLATE NOCASE
-               OR uzbek LIKE ? COLLATE NOCASE
-               OR uzbek LIKE ? COLLATE NOCASE
-               OR uzbek LIKE ? COLLATE NOCASE
-            """,
-            (q, *gloss, *gloss),
-        ).fetchall()
-
-        seen: set[int] = set()
-        results: list[dict] = []
-
-        for row in sorted(
-            (dict(r) for r in exact_rows if _row_matches(q, dict(r))),
-            key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
-        ):
-            rid = row["id"]
-            if rid in seen:
-                continue
-            seen.add(rid)
-            results.append(row)
-            if len(results) >= limit:
-                return [_display_row(r) for r in results[:limit]]
-
-        need = limit - len(results)
-        if need > 0:
-            partial = _fetch_candidates(conn, q, max(need * 40, 2000))
-            partial = [r for r in partial if r["id"] not in seen and _row_matches(q, r)]
-            partial.sort(
-                key=lambda r: (_match_tier(q, r), r.get("chinese") or ""),
-            )
-            for row in partial:
-                seen.add(row["id"])
-                results.append(row)
-                if len(results) >= limit:
-                    break
-
-    return [_display_row(r) for r in results[:limit]]
-
+            """SELECT id, uzbek, english, chinese, pinyin,
+               example_chinese, example_uzbek, hsk_level
+               FROM words
+               WHERE uzbek = ? COLLATE NOCASE
+                  OR uzbek LIKE ? COLLATE NOCASE
+                  OR uzbek LIKE ? COLLATE NOCASE
+                  OR uzbek LIKE ? COLLATE NOCASE
+                  OR english = ? COLLATE NOCASE
+                  OR english LIKE ? COLLATE NOCASE
+                  OR english LIKE ? COLLATE NOCASE
+                  OR english LIKE ? COLLATE NOCASE""",
+            (
 
 def get_word(word_id: int):
     with get_connection() as conn:
