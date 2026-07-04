@@ -1,81 +1,4 @@
-<!--<!DOCTYPE html>-->
-<!--<html lang="uz">-->
-<!--<head>-->
-<!--  <meta charset="utf-8">-->
-<!--  <meta name="viewport" content="width=device-width, initial-scale=1">-->
-<!--  <title>{{ word.chinese }} — Lug'at - Xitoycha-O'zbekcha Lug'at</title>-->
-<!--  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">-->
-<!--  &lt;!&ndash; Google Analytics &ndash;&gt;-->
-<!--  <script async src="https://www.googletagmanager.com/gtag/js?id=G-G51QRVFXC4"></script>-->
-<!--  <script>-->
-<!--    window.dataLayer = window.dataLayer || [];-->
-<!--    function gtag(){dataLayer.push(arguments);}-->
-<!--    gtag('js', new Date());-->
-<!--    gtag('config', 'G-G51QRVFXC4');-->
-<!--  </script>-->
-<!--</head>-->
-<!--<body>-->
-<!--  <div class="wrap">-->
-<!--    <a class="back" href="{{ url_for('index') }}">← Qidiruvga qaytish</a>-->
 
-<!--    {% if in_flashcards %}-->
-<!--      <form method="post" action="{{ url_for('flashcard_remove', word_id=word.id) }}">-->
-<!--        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">-->
-<!--        <button type="submit" class="btn-flashcard btn-flashcard&#45;&#45;remove">✓ Flashcarddan olib tashlash</button>-->
-<!--      </form>-->
-<!--    {% else %}-->
-<!--      <form method="post" action="{{ url_for('flashcard_add', word_id=word.id) }}">-->
-<!--        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">-->
-<!--        <button type="submit" class="btn-flashcard">+ Flashcartaga qo'shish</button>-->
-<!--      </form>-->
-<!--    {% endif %}-->
-
-<!--    <article class="card card&#45;&#45;detail">-->
-<!--      <div class="entry-head entry-head&#45;&#45;detail">-->
-<!--        <h1 class="entry-cn entry-cn&#45;&#45;detail">{{ word.chinese }}</h1>-->
-<!--        {% if word.pinyin %}-->
-<!--          <p class="entry-pinyin entry-pinyin&#45;&#45;detail">{{ word.pinyin }}</p>-->
-<!--        {% endif %}-->
-<!--      </div>-->
-
-<!--      <div class="translations">-->
-<!--        {% if word.uzbek %}-->
-<!--          <p class="entry-line entry-line&#45;&#45;detail">-->
-<!--            <span class="entry-label">O'zbek:</span>-->
-<!--            <span class="entry-text">{{ word.uzbek }}</span>-->
-<!--          </p>-->
-<!--        {% endif %}-->
-<!--        {% if word.english %}-->
-<!--          <p class="entry-line entry-line&#45;&#45;detail entry-line&#45;&#45;english">-->
-<!--            <span class="entry-label">English:</span>-->
-<!--            <span class="entry-text">{{ word.english }}</span>-->
-<!--          </p>-->
-<!--        {% endif %}-->
-<!--      </div>-->
-
-<!--      {% if word.example_chinese or word.example_uzbek %}-->
-<!--        <section class="examples" aria-label="Misollar">-->
-<!--          <h2 class="examples-title">Misollar</h2>-->
-<!--          {% if word.example_chinese %}-->
-<!--            <div class="example-block">-->
-<!--              <p class="example-label">Xitoycha</p>-->
-<!--              <p class="example-zh">{{ word.example_chinese }}</p>-->
-<!--            </div>-->
-<!--          {% endif %}-->
-<!--          {% if word.example_uzbek %}-->
-<!--            <div class="example-block">-->
-<!--              <p class="example-label">O'zbekcha</p>-->
-<!--              <p>{{ word.example_uzbek }}</p>-->
-<!--            </div>-->
-<!--          {% endif %}-->
-<!--        </section>-->
-<!--      {% endif %}-->
-<!--    </article>-->
-
-<!--    <footer class="site">Lug'at</footer>-->
-<!--  </div>-->
-<!--</body>-->
-<!--</html>-->
 
 <!DOCTYPE html>
 <html lang="uz">
@@ -98,10 +21,13 @@
     <a class="back" href="{{ url_for('index') }}">← Qidiruvga qaytish</a>
 
     {% if in_flashcards %}
-      <form method="post" action="{{ url_for('flashcard_remove', word_id=word.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn-flashcard btn-flashcard--remove">✓ Flashcarddan olib tashlash</button>
-      </form>
+      <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin:0.8rem 0 1.2rem;">
+        <form method="post" action="{{ url_for('flashcard_remove', word_id=word.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn-flashcard btn-flashcard--remove">✓ Olib tashlash</button>
+        </form>
+        <a href="{{ url_for('flashcards') }}" class="btn-flashcard">Flashcardlarni ko'rish →</a>
+      </div>
     {% else %}
       <form method="post" action="{{ url_for('flashcard_add', word_id=word.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
