@@ -222,7 +222,7 @@ def get_word(word_id: int):
         row = conn.execute(
             """
             SELECT id, uzbek, english, chinese, pinyin,
-                   example_chinese, example_uzbek
+                   example_chinese, example_uzbek, hsk_level
             FROM words WHERE id = ?
             """,
             (word_id,),
