@@ -18,7 +18,15 @@
 </head>
 <body>
   <div class="wrap">
-    <a class="back" href="{{ url_for('index') }}">← Qidiruvga qaytish</a>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <a class="back" href="{{ url_for('index') }}" style="margin-bottom:0;">← Qidiruvga qaytish</a>
+      <div class="theme-switcher">
+        <button class="theme-btn theme-btn--green" onclick="setTheme('green')" title="Green"></button>
+        <button class="theme-btn theme-btn--classic" onclick="setTheme('classic')" title="Classic"></button>
+        <button class="theme-btn theme-btn--dark" onclick="setTheme('dark')" title="Dark"></button>
+        <button class="theme-btn theme-btn--red" onclick="setTheme('red')" title="Red"></button>
+      </div>
+    </div>
 
     {% if in_flashcards %}
       <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin:0.8rem 0 1.2rem;">
@@ -82,5 +90,17 @@
 
     <footer class="site">Lug'at</footer>
   </div>
+  <script>
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('lugat-theme', theme);
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.theme-btn--' + theme).classList.add('active');
+    }
+    (function() {
+      const t = localStorage.getItem('lugat-theme') || 'green';
+      setTheme(t);
+    })();
+  </script>
 </body>
 </html>

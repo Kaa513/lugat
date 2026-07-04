@@ -1,5 +1,36 @@
 /* Lug'at — Xitoycha-O'zbekcha lug'at */
+[data-theme="classic"] {
+  --bg: #f5f0e8;
+  --surface: #fff;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #92794a;
+  --accent-hover: #7a6339;
+  --accent-soft: #f0e6d0;
+  --border: #e5e7eb;
+}
 
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-soft: #0c2a3e;
+  --border: #2d3748;
+}
+
+[data-theme="red"] {
+  --bg: #fff5f5;
+  --surface: #fff;
+  --text: #1a0505;
+  --muted: #9b6b6b;
+  --accent: #c0392b;
+  --accent-hover: #e74c3c;
+  --accent-soft: #ffe0e0;
+  --border: #f5c6c6;
+}
 :root {
   --bg: #f5f0e8;
   --surface: #fff;
@@ -352,3 +383,25 @@ footer.site {
   font-weight: 700;
   letter-spacing: 0.05em;
 }
+
+.theme-switcher {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.theme-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.theme-btn:hover { transform: scale(1.2); }
+.theme-btn.active { border-color: var(--text); }
+.theme-btn--green  { background: #0f766e; }
+.theme-btn--classic { background: #92794a; }
+.theme-btn--dark   { background: #38bdf8; }
+.theme-btn--red    { background: #c0392b; }
