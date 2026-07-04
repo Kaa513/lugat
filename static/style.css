@@ -1,5 +1,5 @@
 /* Lug'at — Xitoycha-O'zbekcha lug'at */
-[data-theme="classic"] {
+html[data-theme="classic"] {
   --bg: #f5f0e8;
   --surface: #fff;
   --text: #111827;
@@ -10,7 +10,7 @@
   --border: #e5e7eb;
 }
 
-[data-theme="dark"] {
+html[data-theme="dark"] {
   --bg: #0f1117;
   --surface: #1a1d27;
   --text: #e2e8f0;
@@ -21,7 +21,7 @@
   --border: #2d3748;
 }
 
-[data-theme="red"] {
+html[data-theme="red"] {
   --bg: #fff5f5;
   --surface: #fff;
   --text: #1a0505;
