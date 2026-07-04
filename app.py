@@ -273,7 +273,7 @@ def search_words(query: str, limit: int = 50):
                   OR english LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE""",
-            (
+        )
 
 def get_word(word_id: int):
     with get_connection() as conn:
