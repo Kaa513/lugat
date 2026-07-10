@@ -81,7 +81,8 @@ def import_hsk():
                 if existing:
                     conn.execute(
                         """UPDATE words SET pinyin=?, english=?, uzbek=?,
-                           hsk_level=?, example_chinese=?, example_uzbek=?
+                           hsk_level=MIN(COALESCE(hsk_level, 999), ?),
+                           example_chinese=?, example_uzbek=?
                            WHERE chinese=?""",
                         (pinyin, english, uzbek, hsk_level,
                          example_chinese, example_uzbek, chinese)
