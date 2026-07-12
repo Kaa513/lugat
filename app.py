@@ -3,7 +3,7 @@
 from flask import Flask, abort, render_template, request, make_response, redirect, url_for
 import uuid
 
-from database import get_connection, init_db, init_flashcards_db, init_collections_db, seed_sample_if_empty
+from database import get_connection, init_db, init_flashcards_db, init_collections_db, init_search_history_db, seed_sample_if_empty
 from pinyin_utils import convert_pinyin
 from admin import admin_bp
 from flask_limiter import Limiter
@@ -27,6 +27,7 @@ limiter = Limiter(
 init_db()
 init_flashcards_db()
 init_collections_db()
+init_search_history_db()
 seed_sample_if_empty()
 
 
@@ -172,20 +173,14 @@ def search_words(query, limit=50):
             ).fetchall()
             return [_display_row(dict(r)) for r in rows]
 
-        gloss = _gloss_sql_patterns(q)
+        broad = f"%{q}%"
         exact_rows = conn.execute(
             """SELECT id, uzbek, english, chinese, pinyin,
                example_chinese, example_uzbek, hsk_level
                FROM words
-               WHERE uzbek = ? COLLATE NOCASE
-                  OR uzbek LIKE ? COLLATE NOCASE
-                  OR uzbek LIKE ? COLLATE NOCASE
-                  OR uzbek LIKE ? COLLATE NOCASE
-                  OR english = ? COLLATE NOCASE
-                  OR english LIKE ? COLLATE NOCASE
-                  OR english LIKE ? COLLATE NOCASE
+               WHERE uzbek LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE""",
-            (*gloss, *gloss),
+            (broad, broad),
         ).fetchall()
 
         seen = set()
@@ -201,7 +196,25 @@ def search_words(query, limit=50):
             seen.add(rid)
             results.append(row)
             if len(results) >= limit:
-                return [_display_row(r) for r in results[:limit]]
+                break
+
+        best_tier = min((_match_tier(q, r) for r in results), default=3)
+        if len(results) < limit and best_tier > 1 and re.fullmatch(r"[a-zA-Z ]+", q):
+            pinyin_rows = conn.execute(
+                """SELECT id, uzbek, english, chinese, pinyin,
+                   example_chinese, example_uzbek, hsk_level
+                   FROM words WHERE pinyin LIKE ? COLLATE NOCASE
+                   ORDER BY LENGTH(pinyin) ASC""",
+                (f"%{q}%",)
+            ).fetchall()
+            for row in pinyin_rows:
+                rid = row["id"]
+                if rid in seen:
+                    continue
+                seen.add(rid)
+                results.append(dict(row))
+                if len(results) >= limit:
+                    break
 
     return [_display_row(r) for r in results[:limit]]
 
@@ -235,25 +248,50 @@ def is_in_flashcards(word_id):
 def index():
     q = request.args.get("q", "").strip()
     results = search_words(q) if q else []
-    return render_template("index.html", q=q, results=results)
 
-
-@app.route("/word/<int:word_id>")
-def word_detail(word_id):
-    word = get_word(word_id)
-    if not word:
-        abort(404)
-    in_flashcards = is_in_flashcards(word_id)
     session_id = request.cookies.get("session_id", "")
-    collections = []
+    if q:
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        with get_connection() as conn:
+            last = conn.execute(
+                "SELECT query FROM search_history WHERE session_id=? ORDER BY searched_at DESC LIMIT 1",
+                (session_id,)
+            ).fetchone()
+            if last and last["query"].strip().casefold() == q.casefold():
+                conn.execute(
+                    "UPDATE search_history SET searched_at=CURRENT_TIMESTAMP WHERE session_id=? AND query=?",
+                    (session_id, last["query"])
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO search_history (session_id, query) VALUES (?, ?)",
+                    (session_id, q)
+                )
+            conn.commit()
+
+    recent_searches = []
     if session_id:
         with get_connection() as conn:
-            cols = conn.execute(
-                "SELECT id, name FROM collections WHERE session_id = ?",
+            rows = conn.execute(
+                """
+                SELECT query, MAX(searched_at) as last_time
+                FROM search_history
+                WHERE session_id = ?
+                GROUP BY query
+                ORDER BY last_time DESC
+                LIMIT 10
+                """,
                 (session_id,)
             ).fetchall()
-            collections = [dict(c) for c in cols]
-    return render_template("word.html", word=word, in_flashcards=in_flashcards, collections=collections)
+            recent_searches = [r["query"] for r in rows]
+
+    resp = make_response(render_template("index.html", q=q, results=results, recent_searches=recent_searches))
+    if session_id:
+        resp.set_cookie("session_id", session_id, max_age=60*60*24*365)
+    return resp
+
+
 
 @app.route("/flashcards")
 def flashcards():

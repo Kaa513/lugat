@@ -121,3 +121,16 @@ def init_collections_db() -> None:
             )
             """
         )
+
+def init_search_history_db() -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS search_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                query TEXT NOT NULL,
+                searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
