@@ -244,8 +244,16 @@ def word_detail(word_id):
     if not word:
         abort(404)
     in_flashcards = is_in_flashcards(word_id)
-    return render_template("word.html", word=word, in_flashcards=in_flashcards)
-
+    session_id = request.cookies.get("session_id", "")
+    collections = []
+    if session_id:
+        with get_connection() as conn:
+            cols = conn.execute(
+                "SELECT id, name FROM collections WHERE session_id = ?",
+                (session_id,)
+            ).fetchall()
+            collections = [dict(c) for c in cols]
+    return render_template("word.html", word=word, in_flashcards=in_flashcards, collections=collections)
 
 @app.route("/flashcards")
 def flashcards():
@@ -326,6 +334,7 @@ def flashcard_add(word_id):
     session_id = request.cookies.get("session_id")
     if not session_id:
         session_id = str(uuid.uuid4())
+    collection_id = request.form.get("collection_id", "").strip()
     with get_connection() as conn:
         try:
             conn.execute(
@@ -335,6 +344,15 @@ def flashcard_add(word_id):
             conn.commit()
         except Exception:
             pass
+        if collection_id:
+            try:
+                conn.execute(
+                    "INSERT INTO collection_words (collection_id, word_id) VALUES (?, ?)",
+                    (collection_id, word_id),
+                )
+                conn.commit()
+            except Exception:
+                pass
     resp = make_response(redirect(url_for("word_detail", word_id=word_id)))
     resp.set_cookie("session_id", session_id, max_age=60*60*24*365)
     return resp

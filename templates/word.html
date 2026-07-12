@@ -37,10 +37,7 @@
         <a href="{{ url_for('flashcards') }}" class="btn-flashcard">Flashcardlarni ko'rish →</a>
       </div>
     {% else %}
-      <form method="post" action="{{ url_for('flashcard_add', word_id=word.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn-flashcard">+ Flashcartaga qo'shish</button>
-      </form>
+      <button type="button" class="btn-flashcard" onclick="openAddModal()">+ Flashcartaga qo'shish</button>
     {% endif %}
 
     <article class="card card--detail">
@@ -90,6 +87,39 @@
 
     <footer class="site">Lug'at</footer>
   </div>
+
+  <div id="add-modal" class="col-modal" hidden>
+    <div class="col-modal__backdrop" onclick="closeAddModal()"></div>
+    <div class="col-modal__box" role="dialog" aria-labelledby="add-modal-title">
+      <h3 id="add-modal-title" class="col-modal__title">Papka tanlang</h3>
+      <form method="post" action="{{ url_for('flashcard_add', word_id=word.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <ul class="col-picker">
+          <li>
+            <label class="col-picker__item">
+              <input type="radio" name="collection_id" value="" checked>
+              <span class="col-picker__icon">📋</span>
+              <span class="col-picker__name">Mening so'zlarim</span>
+            </label>
+          </li>
+          {% for col in collections %}
+            <li>
+              <label class="col-picker__item">
+                <input type="radio" name="collection_id" value="{{ col.id }}">
+                <span class="col-picker__icon">📁</span>
+                <span class="col-picker__name">{{ col.name }}</span>
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+        <div class="col-modal__actions">
+          <button type="button" class="col-modal__cancel" onclick="closeAddModal()">Bekor</button>
+          <button type="submit" class="col-modal__submit">Qo'shish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     function setTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
@@ -101,6 +131,13 @@
       const t = localStorage.getItem('lugat-theme') || 'green';
       setTheme(t);
     })();
+
+    function openAddModal() {
+      document.getElementById('add-modal').hidden = false;
+    }
+    function closeAddModal() {
+      document.getElementById('add-modal').hidden = true;
+    }
   </script>
 </body>
 </html>

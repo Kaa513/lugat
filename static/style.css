@@ -405,3 +405,113 @@ footer.site {
 .theme-btn--classic { background: #92794a; }
 .theme-btn--dark   { background: #38bdf8; }
 .theme-btn--red    { background: #c0392b; }
+
+/* Collection picker modal */
+.col-modal[hidden] {
+  display: none;
+}
+
+.col-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.col-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.col-modal__box {
+  position: relative;
+  width: 100%;
+  max-width: 22rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+}
+
+.col-modal__title {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.col-modal__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.col-modal__cancel,
+.col-modal__submit {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: none;
+}
+
+.col-modal__cancel {
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.col-modal__submit {
+  background: var(--accent);
+  color: #fff;
+}
+
+.col-modal__submit:hover {
+  background: var(--accent-hover);
+}
+
+.col-picker {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.col-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.col-picker__item:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.col-picker__item input {
+  flex-shrink: 0;
+}
+
+.col-picker__icon {
+  font-size: 1rem;
+}
+
+.col-picker__name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
