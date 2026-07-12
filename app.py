@@ -3,7 +3,7 @@
 from flask import Flask, abort, render_template, request, make_response, redirect, url_for
 import uuid
 
-from database import get_connection, init_db, init_flashcards_db, seed_sample_if_empty
+from database import get_connection, init_db, init_flashcards_db, init_collections_db, seed_sample_if_empty
 from pinyin_utils import convert_pinyin
 from admin import admin_bp
 from flask_limiter import Limiter
@@ -26,6 +26,7 @@ limiter = Limiter(
 
 init_db()
 init_flashcards_db()
+init_collections_db()
 seed_sample_if_empty()
 
 
@@ -249,28 +250,75 @@ def word_detail(word_id):
 @app.route("/flashcards")
 def flashcards():
     session_id = request.cookies.get("session_id", "")
+    folder = request.args.get("folder", "")
+
     if not session_id:
-        return render_template("flashcards.html", user_cards=[], hsk_levels={})
+        return render_template("flashcards.html",
+            collections=[], hsk_counts={},
+            active_folder="", active_name="", cards=[])
+
     with get_connection() as conn:
-        rows = conn.execute(
-            """SELECT w.id, w.chinese, w.pinyin, w.uzbek, w.english,
-                   w.example_chinese, w.example_uzbek, w.hsk_level
-            FROM flashcards f
-            JOIN words w ON w.id = f.word_id
-            WHERE f.session_id = ?
-            ORDER BY f.added_at DESC""",
-            (session_id,),
+        # HSK counts
+        hsk_rows = conn.execute(
+            """SELECT w.hsk_level, COUNT(*) as cnt
+               FROM flashcards f JOIN words w ON w.id = f.word_id
+               WHERE f.session_id = ? AND w.hsk_level IS NOT NULL
+               GROUP BY w.hsk_level""",
+            (session_id,)
         ).fetchall()
-    all_cards = [_display_row(dict(r)) for r in rows]
-    hsk_levels = {}
-    user_cards = []
-    for card in all_cards:
-        level = card.get("hsk_level")
-        if level:
-            hsk_levels.setdefault(level, []).append(card)
-        else:
-            user_cards.append(card)
-    return render_template("flashcards.html", user_cards=user_cards, hsk_levels=hsk_levels)
+        hsk_counts = {r["hsk_level"]: r["cnt"] for r in hsk_rows}
+
+        # User collections
+        cols = conn.execute(
+            """SELECT c.id, c.name,
+               (SELECT COUNT(*) FROM collection_words cw WHERE cw.collection_id = c.id) as word_count
+               FROM collections c WHERE c.session_id = ?""",
+            (session_id,)
+        ).fetchall()
+        collections = [dict(c) for c in cols]
+
+        # Active folder cards
+        cards = []
+        active_name = ""
+        if folder.startswith("hsk-"):
+            level = int(folder.split("-")[1])
+            active_name = f"HSK {level}"
+            rows = conn.execute(
+                """SELECT w.id, w.chinese, w.pinyin, w.uzbek, w.english,
+                       w.example_chinese, w.example_uzbek, w.hsk_level
+                   FROM flashcards f JOIN words w ON w.id = f.word_id
+                   WHERE f.session_id = ? AND w.hsk_level = ?
+                   ORDER BY f.added_at DESC""",
+                (session_id, level)
+            ).fetchall()
+            cards = [_display_row(dict(r)) for r in rows]
+        elif folder.startswith("c-"):
+            col_id = int(folder.split("-")[1])
+            col = conn.execute(
+                "SELECT name FROM collections WHERE id=? AND session_id=?",
+                (col_id, session_id)
+            ).fetchone()
+            if col:
+                active_name = col["name"]
+                rows = conn.execute(
+                    """SELECT w.id, w.chinese, w.pinyin, w.uzbek, w.english,
+                           w.example_chinese, w.example_uzbek, w.hsk_level
+                       FROM collection_words cw JOIN words w ON w.id = cw.word_id
+                       WHERE cw.collection_id = ?
+                       ORDER BY cw.added_at DESC""",
+                    (col_id,)
+                ).fetchall()
+                cards = [_display_row(dict(r)) for r in rows]
+
+    resp = make_response(render_template("flashcards.html",
+        collections=collections,
+        hsk_counts=hsk_counts,
+        active_folder=folder,
+        active_name=active_name,
+        cards=cards
+    ))
+    resp.set_cookie("session_id", session_id, max_age=60*60*24*365)
+    return resp
 
 
 @app.route("/flashcards/add/<int:word_id>", methods=["POST"])
@@ -304,6 +352,49 @@ def flashcard_remove(word_id):
             conn.commit()
     return redirect(url_for("flashcards"))
 
+@app.route("/flashcards/collections/create", methods=["POST"])
+def collection_create():
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    name = request.form.get("name", "").strip()
+    if name:
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO collections (session_id, name) VALUES (?, ?)",
+                (session_id, name)
+            )
+            conn.commit()
+    resp = make_response(redirect(url_for("flashcards")))
+    resp.set_cookie("session_id", session_id, max_age=60*60*24*365)
+    return resp
+
+
+@app.route("/flashcards/collections/<int:collection_id>/rename", methods=["POST"])
+def collection_rename(collection_id):
+    session_id = request.cookies.get("session_id", "")
+    name = request.form.get("name", "").strip()
+    if name and session_id:
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE collections SET name=? WHERE id=? AND session_id=?",
+                (name, collection_id, session_id)
+            )
+            conn.commit()
+    return redirect(url_for("flashcards"))
+
+
+@app.route("/flashcards/collections/<int:collection_id>/delete", methods=["POST"])
+def collection_delete(collection_id):
+    session_id = request.cookies.get("session_id", "")
+    if session_id:
+        with get_connection() as conn:
+            conn.execute(
+                "DELETE FROM collections WHERE id=? AND session_id=?",
+                (collection_id, session_id)
+            )
+            conn.commit()
+    return redirect(url_for("flashcards"))
 
 if __name__ == "__main__":
     app.run(debug=True)
