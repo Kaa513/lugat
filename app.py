@@ -1,6 +1,7 @@
 """Chinese–Uzbek dictionary web app."""
 
-from flask import Flask, abort, render_template, request
+from flask import Flask, abort, render_template, request, make_response, redirect, url_for
+import uuid
 
 from database import get_connection, init_db, init_flashcards_db, seed_sample_if_empty
 from pinyin_utils import convert_pinyin
@@ -9,6 +10,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 import os
+import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "lugat_secret_key_2024")
@@ -27,26 +29,18 @@ init_flashcards_db()
 seed_sample_if_empty()
 
 
-def _glosses(text: str | None) -> list[str]:
-    """Split CC-CEDICT-style 'a | b | c' gloss lists."""
+def _glosses(text):
     if not text:
         return []
     return [part.strip() for part in text.split("|") if part.strip()]
 
 
-def _gloss_sql_patterns(query: str) -> tuple[str, str, str, str]:
-    """LIKE patterns that match one pipe-separated gloss segment."""
+def _gloss_sql_patterns(query):
     q = query.strip()
-    return (
-        q,
-        f"{q} |%",
-        f"%| {q}",
-        f"%| {q} |%",
-    )
+    return (q, f"{q} |%", f"%| {q}", f"%| {q} |%")
 
 
-def _glosses_match(query: str, text: str | None) -> bool:
-    """True if query matches any gloss in a pipe-separated field."""
+def _glosses_match(query, text):
     q = query.strip()
     if not q:
         return False
@@ -58,8 +52,7 @@ def _glosses_match(query: str, text: str | None) -> bool:
     return False
 
 
-def _chinese_matches(query: str, row: dict) -> bool:
-    """Chinese / pinyin search (unchanged behaviour)."""
+def _chinese_matches(query, row):
     q = query.strip()
     chinese = row.get("chinese") or ""
     pinyin = (row.get("pinyin") or "").casefold()
@@ -68,7 +61,7 @@ def _chinese_matches(query: str, row: dict) -> bool:
     return q.casefold() in pinyin
 
 
-def _row_matches(query: str, row: dict) -> bool:
+def _row_matches(query, row):
     q = query.strip()
     if not q:
         return False
@@ -81,65 +74,36 @@ def _row_matches(query: str, row: dict) -> bool:
     return False
 
 
-def _match_tier(query: str, row: dict) -> int:
-    """
-    Lower tier = better match (shown first).
-    0 exact, 1 prefix, 2 substring in gloss / chinese / pinyin.
-    """
+def _match_tier(query, row):
     q = query.strip()
     q_fold = q.casefold()
-
     chinese = row.get("chinese") or ""
     pinyin = (row.get("pinyin") or "").casefold()
-
     if chinese == q or pinyin == q_fold:
         return 0
-
     for gloss in _glosses(row.get("english")) + _glosses(row.get("uzbek")):
         if gloss.casefold() == q_fold:
             return 0
-
     if chinese.startswith(q) or pinyin.startswith(q_fold):
         return 1
-
     for gloss in _glosses(row.get("english")) + _glosses(row.get("uzbek")):
         if gloss.casefold().startswith(q_fold):
             return 1
-
     if q in chinese or q_fold in pinyin:
         return 2
-
     for gloss in _glosses(row.get("english")) + _glosses(row.get("uzbek")):
         if q_fold in gloss.casefold():
             return 2
-
     return 3
 
-def _detect_language(query: str) -> str:
-    """Detect input language: 'chinese', 'pinyin', 'uzbek'"""
-    q = query.strip()
-    # Chinese characters
-    if any('\u4e00' <= ch <= '\u9fff' for ch in q):
-        return 'chinese'
-    # Pinyin with tone marks
-    tone_marks = 'āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ'
-    if any(ch in tone_marks for ch in q.lower()):
-        return 'pinyin'
-    # Numbers after letters = pinyin without tones (ni3, wo3)
-    import re
-    if re.search(r'[a-zA-Z][1-4]', q):
-        return 'pinyin'
-    # Default: uzbek/english latin
-    return 'latin'
 
-def _fetch_candidates(conn, q: str, cap: int) -> list[dict]:
-    """SQL pre-filter; final matching uses per-gloss logic in Python."""
+def _fetch_candidates(conn, q, cap):
     gloss = _gloss_sql_patterns(q)
     broad = f"%{q}%"
     rows = conn.execute(
         """
         SELECT id, uzbek, english, chinese, pinyin,
-               example_chinese, example_uzbek
+               example_chinese, example_uzbek, hsk_level
         FROM words
         WHERE chinese LIKE ?
            OR pinyin LIKE ? COLLATE NOCASE
@@ -155,28 +119,31 @@ def _fetch_candidates(conn, q: str, cap: int) -> list[dict]:
            OR uzbek LIKE ? COLLATE NOCASE
         LIMIT ?
         """,
-        (
-            broad,
-            broad,
-            *gloss,
-            broad,
-            *gloss,
-            broad,
-            cap,
-        ),
+        (broad, broad, *gloss, broad, *gloss, broad, cap),
     ).fetchall()
     return [dict(r) for r in rows]
 
 
-def _display_row(row: dict) -> dict:
-    """Format a word row for templates (tone-marked pinyin)."""
+def _display_row(row):
     out = dict(row)
     if out.get("pinyin"):
         out["pinyin"] = convert_pinyin(out["pinyin"])
     return out
 
 
-def search_words(query: str, limit: int = 50):
+def _detect_language(query):
+    q = query.strip()
+    if any('\u4e00' <= ch <= '\u9fff' for ch in q):
+        return 'chinese'
+    tone_marks = 'āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ'
+    if any(ch in tone_marks for ch in q.lower()):
+        return 'pinyin'
+    if re.search(r'[a-zA-Z][1-4]', q):
+        return 'pinyin'
+    return 'latin'
+
+
+def search_words(query, limit=50):
     q = query.strip()
     if not q:
         return []
@@ -204,7 +171,6 @@ def search_words(query: str, limit: int = 50):
             ).fetchall()
             return [_display_row(dict(r)) for r in rows]
 
-        # latin — uzbek first, then english
         gloss = _gloss_sql_patterns(q)
         exact_rows = conn.execute(
             """SELECT id, uzbek, english, chinese, pinyin,
@@ -217,13 +183,12 @@ def search_words(query: str, limit: int = 50):
                   OR english = ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE
                   OR english LIKE ? COLLATE NOCASE
-                  OR english LIKE ? COLLATE NOCASE
-                  """,
+                  OR english LIKE ? COLLATE NOCASE""",
             (*gloss, *gloss),
         ).fetchall()
 
-        seen: set[int] = set()
-        results: list[dict] = []
+        seen = set()
+        results = []
 
         for row in sorted(
             (dict(r) for r in exact_rows if _row_matches(q, dict(r))),
@@ -239,19 +204,30 @@ def search_words(query: str, limit: int = 50):
 
     return [_display_row(r) for r in results[:limit]]
 
-def get_word(word_id: int):
+
+def get_word(word_id):
     with get_connection() as conn:
         row = conn.execute(
-            """
-            SELECT id, uzbek, english, chinese, pinyin,
+            """SELECT id, uzbek, english, chinese, pinyin,
                    example_chinese, example_uzbek, hsk_level
-            FROM words WHERE id = ?
-            """,
+            FROM words WHERE id = ?""",
             (word_id,),
         ).fetchone()
     if not row:
         return None
     return _display_row(dict(row))
+
+
+def is_in_flashcards(word_id):
+    session_id = request.cookies.get("session_id", "")
+    if not session_id:
+        return False
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM flashcards WHERE session_id = ? AND word_id = ?",
+            (session_id, word_id),
+        ).fetchone()
+    return row is not None
 
 
 @app.route("/")
@@ -262,28 +238,27 @@ def index():
 
 
 @app.route("/word/<int:word_id>")
-def word_detail(word_id: int):
+def word_detail(word_id):
     word = get_word(word_id)
     if not word:
         abort(404)
     in_flashcards = is_in_flashcards(word_id)
     return render_template("word.html", word=word, in_flashcards=in_flashcards)
 
+
 @app.route("/flashcards")
 def flashcards():
     session_id = request.cookies.get("session_id", "")
     if not session_id:
-        return render_template("flashcards.html", cards=[], hsk_levels={})
+        return render_template("flashcards.html", user_cards=[], hsk_levels={})
     with get_connection() as conn:
         rows = conn.execute(
-            """
-            SELECT w.id, w.chinese, w.pinyin, w.uzbek, w.english,
+            """SELECT w.id, w.chinese, w.pinyin, w.uzbek, w.english,
                    w.example_chinese, w.example_uzbek, w.hsk_level
             FROM flashcards f
             JOIN words w ON w.id = f.word_id
             WHERE f.session_id = ?
-            ORDER BY w.hsk_level ASC, f.added_at DESC
-            """,
+            ORDER BY f.added_at DESC""",
             (session_id,),
         ).fetchall()
     all_cards = [_display_row(dict(r)) for r in rows]
@@ -299,9 +274,7 @@ def flashcards():
 
 
 @app.route("/flashcards/add/<int:word_id>", methods=["POST"])
-def flashcard_add(word_id: int):
-    import uuid
-    from flask import make_response, redirect, url_for
+def flashcard_add(word_id):
     session_id = request.cookies.get("session_id")
     if not session_id:
         session_id = str(uuid.uuid4())
@@ -311,6 +284,7 @@ def flashcard_add(word_id: int):
                 "INSERT INTO flashcards (session_id, word_id) VALUES (?, ?)",
                 (session_id, word_id),
             )
+            conn.commit()
         except Exception:
             pass
     resp = make_response(redirect(url_for("word_detail", word_id=word_id)))
@@ -319,8 +293,7 @@ def flashcard_add(word_id: int):
 
 
 @app.route("/flashcards/remove/<int:word_id>", methods=["POST"])
-def flashcard_remove(word_id: int):
-    from flask import redirect, url_for
+def flashcard_remove(word_id):
     session_id = request.cookies.get("session_id", "")
     if session_id:
         with get_connection() as conn:
@@ -328,19 +301,8 @@ def flashcard_remove(word_id: int):
                 "DELETE FROM flashcards WHERE session_id = ? AND word_id = ?",
                 (session_id, word_id),
             )
+            conn.commit()
     return redirect(url_for("flashcards"))
-
-
-def is_in_flashcards(word_id: int) -> bool:
-    session_id = request.cookies.get("session_id", "")
-    if not session_id:
-        return False
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM flashcards WHERE session_id = ? AND word_id = ?",
-            (session_id, word_id),
-        ).fetchone()
-    return row is not None
 
 
 if __name__ == "__main__":
