@@ -41,10 +41,17 @@
 
     .fc-back .fc-top { color: #333; font-size: 0.85rem; }
     .fc-back .fc-middle { font-size: 1.3rem; color: var(--accent, #c0392b); font-weight: bold; }
-    .fc-back .fc-bottom { color: #333; font-size: 0.85rem; display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 0.5rem; }
-    .fc-back .fc-bottom em { font-style: italic; color: var(--muted, #888); font-size: 0.8rem; }
+<!--    .fc-back .fc-bottom { color: #333; font-size: 0.85rem; display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 0.5rem; }-->
+<!--    .fc-back .fc-bottom em { font-style: italic; color: var(&#45;&#45;muted, #888); font-size: 0.8rem; }-->
+    .fc-back .fc-bottom { color: #333; font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; }
+    .fc-back .fc-bottom em { font-style: italic; color: var(--muted, #888); font-size: 0.8rem; align-self: flex-start; }
+
 
     .fc-empty { color: #aaa; font-style: italic; }
+
+    @media (max-width: 540px) {
+      .fc-card { width: 100%; height: 280px; }
+    }
   </style>
 </head>
 <body>
@@ -60,16 +67,52 @@
     </div>
     <h1>Flashcardlar</h1>
 
-    {% if not user_cards and not hsk_levels %}
-      <p class="fc-empty">Hali flashcard yo'q. So'z sahifasidan qo'shing.</p>
-    {% endif %}
+    <section class="col-folders" aria-label="Papkalar">
+      <h2 class="col-folders__title">Papkalar</h2>
+      <div class="col-folders__grid">
+        {% for level in hsk_counts|sort %}
+          <a href="{{ url_for('flashcards', folder='hsk-' ~ level) }}"
+             class="col-folder col-folder--builtin{% if active_folder == 'hsk-' ~ level %} col-folder--active{% endif %}">
+            <span class="col-folder__icon">📘</span>
+            <span class="col-folder__name">HSK {{ level }}</span>
+            <span class="col-folder__count">{{ hsk_counts[level] }}</span>
+          </a>
+        {% endfor %}
 
-    {% if hsk_levels %}
-      {% for level in hsk_levels|sort %}
-        <div class="fc-section">
-          <h2>HSK {{ level }}</h2>
+        {% for col in collections %}
+          <div class="col-folder-wrap{% if active_folder == 'c-' ~ col.id %} col-folder-wrap--active{% endif %}">
+            <a href="{{ url_for('flashcards', folder='c-' ~ col.id) }}" class="col-folder">
+              <span class="col-folder__icon">📁</span>
+              <span class="col-folder__name">{{ col.name }}</span>
+              <span class="col-folder__count">{{ col.word_count }}</span>
+            </a>
+            <div class="col-folder__actions">
+              <button type="button" class="col-folder__btn" title="Nomini o'zgartirish"
+                      onclick="openRenameModal({{ col.id }}, {{ col.name|tojson }})">✎</button>
+              <form method="post" action="{{ url_for('collection_delete', collection_id=col.id) }}"
+                    onsubmit="return confirm('Papkani o\'chirishni xohlaysizmi?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="col-folder__btn col-folder__btn--danger" title="O'chirish">✕</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+
+        <button type="button" class="col-folder col-folder--new" onclick="openCreateModal()">
+          <span class="col-folder__icon">+</span>
+          <span class="col-folder__name">Yangi papka</span>
+        </button>
+      </div>
+    </section>
+
+    {% if not collections and not hsk_counts %}
+      <p class="fc-empty">Hali flashcard yo'q. So'z sahifasidan qo'shing.</p>
+    {% elif active_name %}
+      <section class="fc-section">
+        <h2>{{ active_name }}</h2>
+        {% if cards %}
           <div class="fc-grid">
-            {% for card in hsk_levels[level] %}
+            {% for card in cards %}
               {% set examples = [] %}
               {% if card.example_chinese %}{% set examples = card.example_chinese.split('|') %}{% endif %}
               {% set half = (examples|length // 2) %}
@@ -102,52 +145,45 @@
               </div>
             {% endfor %}
           </div>
-        </div>
-      {% endfor %}
-    {% endif %}
-
-    {% if user_cards %}
-      <div class="fc-section">
-        <h2>Mening so'zlarim</h2>
-        <div class="fc-grid">
-          {% for card in user_cards %}
-            {% set examples = [] %}
-            {% if card.example_chinese %}{% set examples = card.example_chinese.split('|') %}{% endif %}
-            {% set half = (examples|length // 2) %}
-            <div class="fc-card" onclick="this.classList.toggle('flipped')">
-              <div class="fc-inner">
-                <div class="fc-front">
-                  <div class="fc-top">
-                    {% for ex in examples[:half] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
-                  </div>
-                  <div class="fc-middle">{{ card.chinese }}</div>
-                  <div class="fc-bottom">
-                    {% for ex in examples[half:] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
-                  </div>
-                </div>
-                <div class="fc-back">
-                  <div class="fc-top">
-                    {% set uzb_examples = [] %}
-                    {% if card.example_uzbek %}{% set uzb_examples = card.example_uzbek.split('|') %}{% endif %}
-                    {% for ex in uzb_examples[:half] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
-                  </div>
-                  <div class="fc-middle">{{ card.uzbek or card.english }}</div>
-                  <div class="fc-bottom">
-                    {% if card.pinyin %}<em>{{ card.pinyin }}</em>{% endif %}
-                    {% set uzb_examples2 = [] %}
-                    {% if card.example_uzbek %}{% set uzb_examples2 = card.example_uzbek.split('|') %}{% endif %}
-                    {% for ex in uzb_examples2[half:] %}{{ ex.strip() }}{% if not loop.last %} / {% endif %}{% endfor %}
-                  </div>
-                </div>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
+        {% else %}
+          <p class="fc-empty">Bu papkada hali so'z yo'q.</p>
+        {% endif %}
+      </section>
     {% endif %}
 
     <footer class="site">Lug'at</footer>
   </div>
+
+  <div id="create-modal" class="col-modal" hidden>
+    <div class="col-modal__backdrop" onclick="closeCreateModal()"></div>
+    <div class="col-modal__box" role="dialog" aria-labelledby="create-modal-title">
+      <h3 id="create-modal-title" class="col-modal__title">Yangi papka</h3>
+      <form method="post" action="{{ url_for('collection_create') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" class="col-modal__input" placeholder="Papka nomi" required maxlength="80" autofocus>
+        <div class="col-modal__actions">
+          <button type="button" class="col-modal__cancel" onclick="closeCreateModal()">Bekor</button>
+          <button type="submit" class="col-modal__submit">Yaratish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="rename-modal" class="col-modal" hidden>
+    <div class="col-modal__backdrop" onclick="closeRenameModal()"></div>
+    <div class="col-modal__box" role="dialog" aria-labelledby="rename-modal-title">
+      <h3 id="rename-modal-title" class="col-modal__title">Papkani qayta nomlash</h3>
+      <form id="rename-form" method="post" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" id="rename-input" class="col-modal__input" required maxlength="80">
+        <div class="col-modal__actions">
+          <button type="button" class="col-modal__cancel" onclick="closeRenameModal()">Bekor</button>
+          <button type="submit" class="col-modal__submit">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     function setTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
@@ -159,6 +195,23 @@
       const t = localStorage.getItem('lugat-theme') || 'green';
       setTheme(t);
     })();
+
+    function openCreateModal() {
+      document.getElementById('create-modal').hidden = false;
+      document.querySelector('#create-modal input[name="name"]').focus();
+    }
+    function closeCreateModal() {
+      document.getElementById('create-modal').hidden = true;
+    }
+    function openRenameModal(id, name) {
+      document.getElementById('rename-form').action = '/flashcards/collections/' + id + '/rename';
+      document.getElementById('rename-input').value = name;
+      document.getElementById('rename-modal').hidden = false;
+      document.getElementById('rename-input').focus();
+    }
+    function closeRenameModal() {
+      document.getElementById('rename-modal').hidden = true;
+    }
   </script>
 </body>
 </html>
