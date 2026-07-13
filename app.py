@@ -36,6 +36,10 @@ def _glosses(text):
         return []
     return [part.strip() for part in text.split("|") if part.strip()]
 
+def _gloss_head(gloss):
+    """First word of a gloss, ignoring trailing clarifications like ' (erkak)'."""
+    head = gloss.split("(")[0].split(",")[0].strip()
+    return head.casefold()
 
 def _gloss_sql_patterns(query):
     q = query.strip()
@@ -84,7 +88,7 @@ def _match_tier(query, row):
     if chinese == q or pinyin == q_fold:
         return 0
     for gloss in _glosses(row.get("english")) + _glosses(row.get("uzbek")):
-        if gloss.casefold() == q_fold:
+        if gloss.casefold() == q_fold or _gloss_head(gloss) == q_fold:
             return 0
     if chinese.startswith(q) or pinyin.startswith(q_fold):
         return 1
@@ -292,6 +296,22 @@ def index():
     return resp
 
 
+@app.route("/word/<int:word_id>")
+def word_detail(word_id):
+    word = get_word(word_id)
+    if not word:
+        abort(404)
+    in_flashcards = is_in_flashcards(word_id)
+    session_id = request.cookies.get("session_id", "")
+    collections = []
+    if session_id:
+        with get_connection() as conn:
+            cols = conn.execute(
+                "SELECT id, name FROM collections WHERE session_id = ?",
+                (session_id,)
+            ).fetchall()
+            collections = [dict(c) for c in cols]
+    return render_template("word.html", word=word, in_flashcards=in_flashcards, collections=collections)
 
 @app.route("/flashcards")
 def flashcards():
